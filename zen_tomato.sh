@@ -1,21 +1,29 @@
 #!/bin/bash
 
-# defines how long a single Zen session goes
-ZEN_TIME_RANGE=$((10))
-
-COLOR_ORANGE=208
-COLOR_PINK=213
-
+#  <xbar.title>Tiny Zen</xbar.title>
+#  <xbar.version>v2.1.7-beta</xbar.version>
+#  <xbar.author>Konstantin Gasser</xbar.author>
+#  <xbar.author.github>KonstantinGasser</xbar.author.github>
+#  <xbar.desc>Silently show a time window of 2h pass without getting distract by it</xbar.desc>
+#  <xbar.dependencies>bash</xbar.dependencies>
+#
+#  <xbar.var>number(COLOR_START=208): Gradient color start</xbar.var>
+#  <xbar.var>number(COLOR_END=213): Gradient color color</xbar.var>
+#  <xbar.var>number(ZEN_RANGE=120): Focus time you want to set (in minutes)</xbar.var>
+#  
+#  ZEN_FILE also needs to be exported as ENV.
+#  Exlcuded here so I don't have to expose my local path on github :)
+#  use: export ZEN_FILE="/path/to/zen.txt"
 
 current_zen_minutes() {
 
 	# need to use -c since initally no \n is appended to the line (see case "start")
-	if [ "$(wc -c < "${ZEN_CONFIGS_PATH}")" -le 0 ]; then 
+	if [ "$(wc -c < "${ZEN_FILE}")" -le 0 ]; then 
 		echo "-1"
 		return
 	fi
 
-	local start_ts=$(tail -n1 ${ZEN_CONFIGS_PATH} | awk -F ':' '{print $2}' | awk -F '-' '{print $1}')
+	local start_ts=$(tail -n1 ${ZEN_FILE} | awk -F ':' '{print $2}' | awk -F '-' '{print $1}')
 	local now_ts=$(date +%s)
 
 	local diff=$((now_ts - start_ts))
@@ -28,12 +36,12 @@ current_zen_minutes() {
 session_running() {
 	
 	# need to use -c since initally no \n is appended to the line (see case "start")
-	if [ "$(wc -c < "${ZEN_CONFIGS_PATH}")" -le 0 ]; then 
+	if [ "$(wc -c < "${ZEN_FILE}")" -le 0 ]; then 
 		echo "-1"
 		return
 	fi
 
-	local nf=$(tail -n1 ${ZEN_CONFIGS_PATH} | awk -F '-' '{print NF}')
+	local nf=$(tail -n1 ${ZEN_FILE} | awk -F '-' '{print NF}')
 
 	if [ $nf -lt 4 ]; then
 		echo "1"
@@ -45,14 +53,14 @@ session_running() {
 
 # gradient from orange -> pink
 color_gradient() {
-	local passed_minutes=$(min $1 $ZEN_TIME_RANGE)
-	local color_diff=$(($COLOR_PINK-$COLOR_ORANGE))
+	local passed_minutes=$(min $1 ${ZEN_RANGE})
+	local color_diff=$((${COLOR_END}-${COLOR_START}))
 
-	# scale ZEN_TIME_RANGE to color diff. Asumption is that ZEN_TIME_RANGE >> color_diff
-	local step_increment=$(( (passed_minutes * color_diff) / $ZEN_TIME_RANGE ))
+	# scale {ZEN_RANGE} to color diff. Asumption is that {ZEN_RANGE} >> color_diff
+	local step_increment=$(( (passed_minutes * color_diff) / ${ZEN_RANGE} ))
 
 	# \033[38;5;214m
-	echo "\033[38;5;$(($COLOR_ORANGE+step_increment))m"
+	echo "\033[38;5;$((${COLOR_START}+step_increment))m"
 }
 
 min() {
@@ -69,10 +77,6 @@ if [ -z "$1" ]; then
 	if [ "$passed_minutes" -lt 0 ]; then
 	echo "Init state"
 	else 
-		# local char="①"
-		# if [ "$passed_minutes" -ge 60 ]; then
-		# 	char="②"
-		# fi
 		char="⬤"
 
 		color=$(color_gradient $passed_minutes)
@@ -83,10 +87,10 @@ if [ -z "$1" ]; then
 else 
 	case "$1" in
 		"start") # create a new entry in the zen config file with YYYY-MM-DD:unix-timestamp
-			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_CONFIGS_PATH}"
+			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
 		"stop") 
-			echo "-$(date +%s)" >> ${ZEN_CONFIGS_PATH}
+			echo "-$(date +%s)" >> ${ZEN_FILE}
 			;;
 	esac
 fi
@@ -99,5 +103,4 @@ if [ $(session_running) -eq -1 ]; then
 else
 	echo "Zen Off | bash='$0' | param1='stop' | terminal=false | refresh=true"
 fi
-
 
