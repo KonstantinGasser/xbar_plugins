@@ -87,6 +87,15 @@ update_break_continue_time() {
 	sed -i '' "${line_number} s/${current_ts}/${now_ts}/" "${ZEN_FILE}"
 }
 
+# appends -unix_timestamp to the last line of the zen config
+close_session() {
+	
+	local line_number=$(wc -l < "${ZEN_FILE}")
+	local now_ts=$(date +%s)
+
+	sed -i '' "${line_number} s/$/-${now_ts}/" "${ZEN_FILE}"
+}
+
 passed_zen_minutes() {
 
 	# need to use -c since initally no \n is appended to the line (see case "start")
@@ -102,24 +111,6 @@ passed_zen_minutes() {
 	
 	echo $(($diff / $HOUR_IN_MINUTES))
 }
-
-# UNUSED
-# based on the provided ZEN_RANGE compute how often
-# it was reached.
-# really just a convenience function for better readabiliy.
-#
-# example:
-# ZEN_RANGE=120
-# passed_minutes=156
-# => count=1
-#
-# ZEN_RANGE=120
-# passed_minutes=347
-# => count=2
-count_times_zen_reached() {
-	echo "$(($1/$ZEN_RANGE))"
-}
-
 
 # -1: no break running
 #  1: break running
@@ -174,7 +165,7 @@ if [ -z "$1" ]; then
 		exit 0
 	fi
 
-	if [ "$passed_minutes" -lt 0 ]; then
+	if [ $(session_running) -eq -1 ]; then
 		echo -e "\x1B[48;5;208mz\x1B[48;5;211me\x1B[48;5;213mn"
 		echo -e "\x1B[0m"
 	else 
@@ -246,7 +237,8 @@ else
 				print_menu	
 				exit 0
 			fi
-			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
+			
+			echo "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
 		"break")
 			if [ $(session_running) -eq -1 ]; then
@@ -300,7 +292,8 @@ else
 				print_menu	
 				exit 0
 			fi
-			echo "-$(date +%s)" >> "$ZEN_FILE"
+
+			close_session
 			;;
 	esac
 fi
