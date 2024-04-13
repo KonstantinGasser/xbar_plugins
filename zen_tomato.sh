@@ -15,6 +15,12 @@
 #  Exlcuded here so I don't have to expose my local path on github :)
 #  use: export ZEN_FILE="/path/to/zen.txt"
 
+COLOR_START=205
+COLOR_END=202
+ZEN_RANGE=120
+ZEN_FILE="/Users/konstantingasser/.xbar/zen.txt"
+STEP_CHAR="■"
+
 current_zen_minutes() {
 
 	# need to use -c since initally no \n is appended to the line (see case "start")
@@ -51,16 +57,31 @@ session_running() {
 	echo "-1"
 }
 
-# gradient from orange -> pink
-color_gradient() {
-	local passed_minutes=$(min $1 ${ZEN_RANGE})
-	local color_diff=$((${COLOR_END}-${COLOR_START}))
 
-	# scale {ZEN_RANGE} to color diff. Asumption is that {ZEN_RANGE} >> color_diff
-	local step_increment=$(( (passed_minutes * color_diff) / ${ZEN_RANGE} ))
+gradient_by_step() {
 
-	# \033[38;5;214m
-	echo "\033[38;5;$((${COLOR_START}+step_increment))m"
+	local max_quarters=$(($ZEN_RANGE / 15))
+	local max_steps=6
+
+	local step=$1
+	if [ $COLOR_START -ge $COLOR_END ]; then
+		step=$((-1*step))
+	fi
+
+	# step=$(((step * max_steps) / max_quarters))
+	step=$(scale $max_quarters $max_steps $step)
+
+	# \033[38;5;#m
+	echo "\x1B[38;5;$((${COLOR_START}+step))m"
+
+}
+
+scale() {
+	
+	local maxima=$1
+	local nominal=$2
+	local value=$3
+	echo "$(((value * nominal) / maxima))"
 }
 
 min() {
@@ -71,16 +92,37 @@ min() {
     fi
 }
 
+
 if [ -z "$1" ]; then
 	passed_minutes=$(current_zen_minutes)
 
-	if [ "$passed_minutes" -lt 0 ]; then
-	echo "Init state"
-	else 
-		char="⬤"
 
-		color=$(color_gradient $passed_minutes)
-		echo -e "${color}${char}"
+	if [ "$passed_minutes" -lt 0 ]; then
+		echo -e "\x1B[48;5;208mz\x1B[48;5;211me\x1B[48;5;213mn"
+	else 
+		quarters=$((passed_minutes / 15))
+
+		out=""
+		reminder_quarters=$(($quarters % 4)) # catch reminding quarters
+
+		# here each iteration implies 1 hour has passed
+		# which we can render
+		hours=$quarters
+		counter=0
+		while [ $hours -gt 3 ]; do
+			counter+=1
+			hours=$((hours-4))
+		done
+
+		out+="Focused ${hours}h | "
+		# account for reminding quarters of current hour
+		# and somehow render them
+		for ((i = 1; i <= reminder_quarters; i++)); do
+			out+="$(gradient_by_step $i)$STEP_CHAR"	
+		done
+
+			
+		echo -e "${out}"
 	fi
 
 
@@ -90,7 +132,8 @@ else
 			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
 		"stop") 
-			echo "-$(date +%s)" >> ${ZEN_FILE}
+
+			echo "-$(date +%s)" >> "$ZEN_FILE"
 			;;
 	esac
 fi
@@ -99,8 +142,21 @@ fi
 echo "---"
 
 if [ $(session_running) -eq -1 ]; then
-	echo "Zen On | bash='$0' | param1='start' | terminal=false | refresh=true"
+	echo "Let's Focus | bash='$0' | param1='start' | terminal=false | refresh=true"
 else
-	echo "Zen Off | bash='$0' | param1='stop' | terminal=false | refresh=true"
+	echo "Coffee break | bash='$0' | param1='stop' | terminal=false | refresh=true"
 fi
 
+# gradient from orange -> pink
+color_gradient() {
+
+	local passed_minutes=$(min $1 ${ZEN_RANGE})
+	local color_diff=$((${COLOR_END}-${COLOR_START}))
+
+	# scale ZEN_RANGE to color diff. Asumption is that ZEN_RANGE >> color_diff
+	local step_increment=$(( (passed_minutes * color_diff) / ${ZEN_RANGE} ))
+
+	# \033[38;5;#m
+	echo "/x1B[38;5;$((${COLOR_START}+step_increment))m"
+
+}
