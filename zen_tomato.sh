@@ -27,6 +27,33 @@ STEP_CHAR="■"
 QUARTER_IN_MINUTES=15
 QUARTERS_IN_HOUR=4
 
+gradient_by_step() {
+
+	local max_quarters=$(($ZEN_RANGE / 15))
+	local max_steps=6
+
+	local step=$1
+	if [ $COLOR_START -ge $COLOR_END ]; then
+		step=$((-1*step))
+	fi
+
+	# step=$(((step * max_steps) / max_quarters))
+	step=$(scale $max_quarters $max_steps $step)
+
+	# \033[38;5;#m
+	echo "\x1B[38;5;$((${COLOR_START}+step))m"
+
+}
+
+scale() {
+	
+	local maxima=$1
+	local nominal=$2
+	local value=$3
+	echo "$(((value * nominal) / maxima))"
+}
+
+
 current_zen_minutes() {
 
 	# need to use -c since initally no \n is appended to the line (see case "start")
@@ -85,7 +112,12 @@ if [ -z "$1" ]; then
 			hours=$((hours-4))
 		done
 
-		message+="Focused ${hours}h | "
+		if [ $hours -gt 0 ]; then
+			message+="${hours} hours done | "
+		else 
+			message+="Keep going.."
+		fi
+
 		# account for reminding quarters of current hour
 		# and somehow render them
 		for ((i = 1; i <= reminder_quarters; i++)); do
@@ -100,6 +132,10 @@ if [ -z "$1" ]; then
 else 
 	case "$1" in
 		"start") # create a new entry in the zen config file with YYYY-MM-DD:unix-timestamp
+			if [ $(session_running) -eq 1 ]; then
+				echo "Close session first"
+				return
+			fi
 			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
 		"stop") 
@@ -111,6 +147,7 @@ fi
 
 echo "---"
 
+
 if [ $(session_running) -eq -1 ]; then
 	echo "Let's Focus | bash='$0' | param1='start' | terminal=false | refresh=true"
 else
@@ -118,15 +155,16 @@ else
 fi
 
 # gradient from orange -> pink
-color_gradient() {
+# color_gradient() {
+#
+# 	local passed_minutes=$(min $1 ${ZEN_RANGE})
+# 	local color_diff=$((${COLOR_END}-${COLOR_START}))
+#
+# 	# scale ZEN_RANGE to color diff. Asumption is that ZEN_RANGE >> color_diff
+# 	local step_increment=$(( (passed_minutes * color_diff) / ${ZEN_RANGE} ))
+#
+# 	# \033[38;5;#m
+# 	echo "/x1B[38;5;$((${COLOR_START}+step_increment))m"
+#
+# }
 
-	local passed_minutes=$(min $1 ${ZEN_RANGE})
-	local color_diff=$((${COLOR_END}-${COLOR_START}))
-
-	# scale ZEN_RANGE to color diff. Asumption is that ZEN_RANGE >> color_diff
-	local step_increment=$(( (passed_minutes * color_diff) / ${ZEN_RANGE} ))
-
-	# \033[38;5;#m
-	echo "/x1B[38;5;$((${COLOR_START}+step_increment))m"
-
-}
