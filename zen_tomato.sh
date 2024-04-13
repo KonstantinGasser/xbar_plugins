@@ -36,36 +36,6 @@ print_menu() {
 	fi
 }
 
-# UNUSED START
-# gradient_by_step() {
-#
-# 	local max_quarters=$(($ZEN_RANGE / $QUARTER_IN_MINUTES))
-# 	# maximum consecutive sequence of ansi colors in increasing/decreasing color shades
-# 	# 202->203->204->205->206->207
-# 	# 208 begin of new color shade
-# 	local max_steps=6 
-#
-# 	local step=$1
-# 	if [ $COLOR_START -ge $COLOR_END ]; then
-# 		step=$((-1*step))
-# 	fi
-#
-# 	# step=$(((step * max_steps) / max_quarters))
-# 	step=$(scale $max_quarters $max_steps $step)
-#
-# 	# \033[38;5;#m
-# 	echo -e "\x1B[38;5;$((${COLOR_START}+step))m"
-# }
-#
-# scale() {
-# 	local maxima=$1
-# 	local nominal=$2
-# 	local value=$3
-# 	echo "$(((value * nominal) / maxima))"
-# }
-#
-# UNUSED END
-
 passed_zen_minutes() {
 
 	# need to use -c since initally no \n is appended to the line (see case "start")
@@ -80,6 +50,22 @@ passed_zen_minutes() {
 	local diff=$((now_ts - start_ts))
 	
 	echo $(($diff / $HOUR_IN_MINUTES))
+}
+
+# based on the provided ZEN_RANGE compute how often
+# it was reached.
+# really just a convenience function for better readabiliy.
+#
+# example:
+# ZEN_RANGE=120
+# passed_minutes=156
+# => count=1
+#
+# ZEN_RANGE=120
+# passed_minutes=347
+# => count=2
+count_times_zen_reached() {
+	echo "$(($1/$ZEN_RANGE))"
 }
 
 # -1: no session running
@@ -162,6 +148,12 @@ if [ -z "$1" ]; then
 		# compute the trailing minutes last uncompleted quarter.
 		# values in range [0,14).
 		left_minutes=$(($remaining_minutes % $QUARTER_IN_MINUTES))
+	
+		# in order to not show nothing when a new hour started
+		# and a quarter has not passed yet show a dot
+		if [ $remaining_quarters -eq 0 && $left_minutes -gt 0]; then
+			message+=" \x1B[38;5;${QUARTER_COLORS[0]}m${STEP_CHAR}"
+		fi
 
 		echo -e "${message}"
 	fi
