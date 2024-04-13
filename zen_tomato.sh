@@ -58,41 +58,6 @@ session_running() {
 }
 
 
-gradient_by_step() {
-
-	local max_quarters=$(($ZEN_RANGE / 15))
-	local max_steps=6
-
-	local step=$1
-	if [ $COLOR_START -ge $COLOR_END ]; then
-		step=$((-1*step))
-	fi
-
-	# step=$(((step * max_steps) / max_quarters))
-	step=$(scale $max_quarters $max_steps $step)
-
-	# \033[38;5;#m
-	echo "\x1B[38;5;$((${COLOR_START}+step))m"
-
-}
-
-scale() {
-	
-	local maxima=$1
-	local nominal=$2
-	local value=$3
-	echo "$(((value * nominal) / maxima))"
-}
-
-min() {
-    if [ "$1" -lt "$2" ]; then
-        echo "$1"
-    else
-	    echo "$2"
-    fi
-}
-
-
 if [ -z "$1" ]; then
 	passed_minutes=$(current_zen_minutes)
 
@@ -102,7 +67,7 @@ if [ -z "$1" ]; then
 	else 
 		quarters=$((passed_minutes / 15))
 
-		out=""
+		message=""
 		reminder_quarters=$(($quarters % 4)) # catch reminding quarters
 
 		# here each iteration implies 1 hour has passed
@@ -114,15 +79,15 @@ if [ -z "$1" ]; then
 			hours=$((hours-4))
 		done
 
-		out+="Focused ${hours}h | "
+		message+="Focused ${hours}h | "
 		# account for reminding quarters of current hour
 		# and somehow render them
 		for ((i = 1; i <= reminder_quarters; i++)); do
-			out+="$(gradient_by_step $i)$STEP_CHAR"	
+			message+="$(gradient_by_step $i)$STEP_CHAR"	
 		done
 
 			
-		echo -e "${out}"
+		echo -e "${message}"
 	fi
 
 
