@@ -171,12 +171,18 @@ else
 	case "$1" in
 		"start") # create a new entry in the zen config file with YYYY-MM-DD:unix-timestamp
 			if [ $(session_running) -eq 1 ]; then
-				echo "Close session first"
+				echo "Starting of session only while no session is running"
+				print_menu	
 				exit 0
 			fi
 			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
 		"stop") 
+			if [ $(session_running) -eq -1 ]; then
+				echo "Stopping of session only while a session is running"
+				print_menu	
+				exit 0
+			fi
 			echo "-$(date +%s)" >> "$ZEN_FILE"
 			;;
 	esac
