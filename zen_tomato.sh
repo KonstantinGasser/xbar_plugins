@@ -7,54 +7,66 @@
 #  <xbar.desc>Silently show a time window of 2h pass without getting distract by it</xbar.desc>
 #  <xbar.dependencies>bash</xbar.dependencies>
 #
-#  <xbar.var>number(COLOR_START=208): Gradient color start</xbar.var>
-#  <xbar.var>number(COLOR_END=213): Gradient color color</xbar.var>
+#  <xbar.var>number(COLOR_ONE=213): First quarter color</xbar.var>
+#  <xbar.var>number(COLOR_TWO=213): Second quarter color</xbar.var>
+#  <xbar.var>number(COLOR_THREE=213): Third quarter color</xbar.var>
 #  <xbar.var>number(ZEN_RANGE=120): Focus time you want to set (in minutes)</xbar.var>
+#  <xbar.var>string(ZEN_FILE="/path/to/zen-file"): Path to zen config</xbar.var>
 #  
-#  ZEN_FILE also needs to be exported as ENV.
-#  Exlcuded here so I don't have to expose my local path on github :)
-#  use: export ZEN_FILE="/path/to/zen.txt"
-#
-#
 #  IDEAS:
 #  - make ZEN_RANGE soft limit with a visual reminder to take a break :)
 
-COLOR_START=205
-COLOR_END=202
-ZEN_RANGE=120
-ZEN_FILE="/Users/konstantingasser/.xbar/zen.txt"
-STEP_CHAR="■"
+STEP_CHAR="⬤"
+STEP_CHARS=("➊" "➋" "➌" "◰") # index 3 not needed since range of quarters is [0,4)
+
+QUARTER_COLORS=($COLOR_ONE $COLOR_TWO $COLOR_THREE)
+
+HOUR_IN_MINUTES=60
 QUARTER_IN_MINUTES=15
 QUARTERS_IN_HOUR=4
 
-gradient_by_step() {
 
-	local max_quarters=$(($ZEN_RANGE / 15))
-	local max_steps=6
+print_menu() {
+	echo "---"
 
-	local step=$1
-	if [ $COLOR_START -ge $COLOR_END ]; then
-		step=$((-1*step))
+	if [ $(session_running) -eq -1 ]; then
+		echo "Let's Focus | bash='$0' | param1='start' | terminal=false | refresh=true"
+	else
+		echo "Coffee break | bash='$0' | param1='stop' | terminal=false | refresh=true"
 	fi
-
-	# step=$(((step * max_steps) / max_quarters))
-	step=$(scale $max_quarters $max_steps $step)
-
-	# \033[38;5;#m
-	echo "\x1B[38;5;$((${COLOR_START}+step))m"
-
 }
 
-scale() {
-	
-	local maxima=$1
-	local nominal=$2
-	local value=$3
-	echo "$(((value * nominal) / maxima))"
-}
+# UNUSED START
+# gradient_by_step() {
+#
+# 	local max_quarters=$(($ZEN_RANGE / $QUARTER_IN_MINUTES))
+# 	# maximum consecutive sequence of ansi colors in increasing/decreasing color shades
+# 	# 202->203->204->205->206->207
+# 	# 208 begin of new color shade
+# 	local max_steps=6 
+#
+# 	local step=$1
+# 	if [ $COLOR_START -ge $COLOR_END ]; then
+# 		step=$((-1*step))
+# 	fi
+#
+# 	# step=$(((step * max_steps) / max_quarters))
+# 	step=$(scale $max_quarters $max_steps $step)
+#
+# 	# \033[38;5;#m
+# 	echo -e "\x1B[38;5;$((${COLOR_START}+step))m"
+# }
+#
+# scale() {
+# 	local maxima=$1
+# 	local nominal=$2
+# 	local value=$3
+# 	echo "$(((value * nominal) / maxima))"
+# }
+#
+# UNUSED END
 
-
-current_zen_minutes() {
+passed_zen_minutes() {
 
 	# need to use -c since initally no \n is appended to the line (see case "start")
 	if [ "$(wc -c < "${ZEN_FILE}")" -le 0 ]; then 
@@ -67,7 +79,7 @@ current_zen_minutes() {
 
 	local diff=$((now_ts - start_ts))
 	
-	echo $(($diff / 60))
+	echo $(($diff / $HOUR_IN_MINUTES))
 }
 
 # -1: no session running
@@ -92,39 +104,65 @@ session_running() {
 
 
 if [ -z "$1" ]; then
-	passed_minutes=$(current_zen_minutes)
+	passed_minutes=$(passed_zen_minutes)
 
 
 	if [ "$passed_minutes" -lt 0 ]; then
 		echo -e "\x1B[48;5;208mz\x1B[48;5;211me\x1B[48;5;213mn"
+		echo -e "\x1B[0m"
 	else 
-		quarters=$((passed_minutes / $QUARTER_IN_MINUTES))
 
+		# prefix:
+		# 1) either shows number of passed hours
+		# 2) or if hours eq 0 static text
+		#
+		# suffix:
+		# 1) shows uncompleted hour segements colors
+		# 2) unclear what to show when 0 quarters (in the first 14min 59sec)??
 		message=""
-		reminder_quarters=$(($quarters % QUARTERS_IN_HOUR)) # catch reminding quarters
 
-		# here each iteration implies 1 hour has passed
-		# which we can render
-		hours=$quarters
-		counter=0
-		while [ $hours -gt 3 ]; do
-			counter+=1
-			hours=$((hours-4))
-		done
-
+		# compute how many hours have passed so far.	
+		hours=$((passed_minutes / $HOUR_IN_MINUTES))
 		if [ $hours -gt 0 ]; then
-			message+="${hours} hours done | "
-		else 
+			message+="${hours} hours: "
+		else
 			message+="Keep going.."
 		fi
+		
+		# compute minutes of new started hour (range [0,60)).
+		#
+		# example:
+		# 104 passed minutes implies 1 hour has passed and 44
+		# minutes into the new hour have been counted
+		remaining_minutes=$(($passed_minutes % $HOUR_IN_MINUTES))
+		
+		# compute based on the remaining minutes how many quarters
+		# within that time have passed.
+		#
+		# example:
+		# 44 minutes of the uncompleted hour have passed and
+		# in total floor(44 / 15) full quarters have passed
+		# which are 2
+		remaining_quarters=$(($remaining_minutes / $QUARTER_IN_MINUTES))
 
-		# account for reminding quarters of current hour
-		# and somehow render them
-		for ((i = 1; i <= reminder_quarters; i++)); do
-			message+="$(gradient_by_step $i)$STEP_CHAR"	
+		# remaining quarters can be zero at which point we do not want to
+		# include a divider between the message prefix and suffix
+		if [ $remaining_quarters -gt 0 ]; then
+			message+=" "
+		fi
+
+		# for each passed quarter append a color shifted STEP_CHAR.
+		for ((i = 1; i <= $remaining_quarters; i++)); do
+			message+=" \x1B[38;5;${QUARTER_COLORS[$(($i-1))]}m${STEP_CHAR}"
+			
 		done
 
-			
+		# NOTE: not sure what to do which this info?
+		#
+		# compute the trailing minutes last uncompleted quarter.
+		# values in range [0,14).
+		left_minutes=$(($remaining_minutes % $QUARTER_IN_MINUTES))
+
 		echo -e "${message}"
 	fi
 
@@ -134,7 +172,7 @@ else
 		"start") # create a new entry in the zen config file with YYYY-MM-DD:unix-timestamp
 			if [ $(session_running) -eq 1 ]; then
 				echo "Close session first"
-				return
+				exit 0
 			fi
 			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
@@ -144,27 +182,4 @@ else
 	esac
 fi
 
-
-echo "---"
-
-
-if [ $(session_running) -eq -1 ]; then
-	echo "Let's Focus | bash='$0' | param1='start' | terminal=false | refresh=true"
-else
-	echo "Coffee break | bash='$0' | param1='stop' | terminal=false | refresh=true"
-fi
-
-# gradient from orange -> pink
-# color_gradient() {
-#
-# 	local passed_minutes=$(min $1 ${ZEN_RANGE})
-# 	local color_diff=$((${COLOR_END}-${COLOR_START}))
-#
-# 	# scale ZEN_RANGE to color diff. Asumption is that ZEN_RANGE >> color_diff
-# 	local step_increment=$(( (passed_minutes * color_diff) / ${ZEN_RANGE} ))
-#
-# 	# \033[38;5;#m
-# 	echo "/x1B[38;5;$((${COLOR_START}+step_increment))m"
-#
-# }
-
+print_menu
