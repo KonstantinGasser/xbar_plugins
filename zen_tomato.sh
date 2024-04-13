@@ -14,12 +14,18 @@
 #  ZEN_FILE also needs to be exported as ENV.
 #  Exlcuded here so I don't have to expose my local path on github :)
 #  use: export ZEN_FILE="/path/to/zen.txt"
+#
+#
+#  IDEAS:
+#  - make ZEN_RANGE soft limit with a visual reminder to take a break :)
 
 COLOR_START=205
 COLOR_END=202
 ZEN_RANGE=120
 ZEN_FILE="/Users/konstantingasser/.xbar/zen.txt"
 STEP_CHAR="■"
+QUARTER_IN_MINUTES=15
+QUARTERS_IN_HOUR=4
 
 current_zen_minutes() {
 
@@ -65,10 +71,10 @@ if [ -z "$1" ]; then
 	if [ "$passed_minutes" -lt 0 ]; then
 		echo -e "\x1B[48;5;208mz\x1B[48;5;211me\x1B[48;5;213mn"
 	else 
-		quarters=$((passed_minutes / 15))
+		quarters=$((passed_minutes / $QUARTER_IN_MINUTES))
 
 		message=""
-		reminder_quarters=$(($quarters % 4)) # catch reminding quarters
+		reminder_quarters=$(($quarters % QUARTERS_IN_HOUR)) # catch reminding quarters
 
 		# here each iteration implies 1 hour has passed
 		# which we can render
@@ -97,7 +103,6 @@ else
 			echo -n "$(date +%Y-%m-%d):$(date +%s)" >> "${ZEN_FILE}"
 			;;
 		"stop") 
-
 			echo "-$(date +%s)" >> "$ZEN_FILE"
 			;;
 	esac
