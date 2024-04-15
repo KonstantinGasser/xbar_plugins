@@ -188,12 +188,14 @@ if [ -z "$1" ]; then
 	hours=$((passed_minutes / $HOUR_IN_MINUTES))
 	if [ $hours -gt 0 ]; then
 		message+="${hours} hours: "
-	else
-		message+="Keep going.."
+
+		# append divider between prefix and suffix
+		message+=" - "
 	fi
 
-	# append divider between prefix and suffix
-	message+=" - "
+	# TODO: for the first 14 minutes nothing will be displayed.
+	# Give some indication that the timer has started..
+
 
 	# compute minutes of new started hour (range [0,60)).
 	#
