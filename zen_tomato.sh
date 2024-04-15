@@ -16,6 +16,7 @@
 #  IDEAS:
 #  - make ZEN_RANGE soft limit with a visual reminder to take a break :)
 
+
 STEP_CHAR="⬤"
 BREAK_PREFIX="b"
 
@@ -167,66 +168,66 @@ if [ -z "$1" ]; then
 
 	if [ $(session_running) -eq -1 ]; then
 		echo -e "\x1B[48;5;208mz\x1B[48;5;211me\x1B[48;5;213mn"
-		echo -e "\x1B[0m"
-	else 
-
-		# prefix:
-		# 1) either shows number of passed hours
-		# 2) or if hours eq 0 static text
-		#
-		# divider:
-		# 1) " - "
-		#
-		# suffix:
-		# 1) shows uncompleted hour segements colors
-		# 2) unclear what to show when 0 quarters (in the first 14min 59sec)??
-		message=""
-
-		# compute how many hours have passed so far.	
-		hours=$((passed_minutes / $HOUR_IN_MINUTES))
-		if [ $hours -gt 0 ]; then
-			message+="${hours} hours: "
-		else
-			message+="Keep going.."
-		fi
-
-		# append divider between prefix and suffix
-		message+=" - "
-		
-		# compute minutes of new started hour (range [0,60)).
-		#
-		# example:
-		# 104 passed minutes implies 1 hour has passed and 44
-		# minutes into the new hour have been counted
-		remaining_minutes=$(($passed_minutes % $HOUR_IN_MINUTES))
-		
-		# compute based on the remaining minutes how many quarters
-		# within that time have passed.
-		#
-		# example:
-		# 44 minutes of the uncompleted hour have passed and
-		# in total floor(44 / 15) full quarters have passed
-		# which are 2
-		remaining_quarters=$(($remaining_minutes / $QUARTER_IN_MINUTES))
-
-
-		# for each passed quarter append a color shifted STEP_CHAR.
-		for ((i = 1; i <= $remaining_quarters; i++)); do
-			message+=" \x1B[38;5;${QUARTER_COLORS[$(($i-1))]}m${STEP_CHAR}"
-		done
-
-		# compute the trailing minutes last uncompleted quarter.
-		# values in range [0,14).
-		left_minutes=$(($remaining_minutes % $QUARTER_IN_MINUTES))
-	
-		# in order to not show nothing when a new hour started
-		# and a quarter has not passed yet show a dot
-		if [ $remaining_quarters -eq 0 ] && [ $left_minutes -ge 0 ]; then
-			message+=" \x1B[38;5;${QUARTER_COLORS[0]}m${STEP_CHAR}"
-		fi
-
-		echo -e "${message}"
+		print_menu
+		exit 0
 	fi
+
+	# prefix:
+	# 1) either shows number of passed hours
+	# 2) or if hours eq 0 static text
+	#
+	# divider:
+	# 1) " - "
+	#
+	# suffix:
+	# 1) shows uncompleted hour segements colors
+	# 2) unclear what to show when 0 quarters (in the first 14min 59sec)??
+	message=""
+
+	# compute how many hours have passed so far.	
+	hours=$((passed_minutes / $HOUR_IN_MINUTES))
+	if [ $hours -gt 0 ]; then
+		message+="${hours} hours: "
+	else
+		message+="Keep going.."
+	fi
+
+	# append divider between prefix and suffix
+	message+=" - "
+
+	# compute minutes of new started hour (range [0,60)).
+	#
+	# example:
+	# 104 passed minutes implies 1 hour has passed and 44
+	# minutes into the new hour have been counted
+	remaining_minutes=$(($passed_minutes % $HOUR_IN_MINUTES))
+
+	# compute based on the remaining minutes how many quarters
+	# within that time have passed.
+	#
+	# example:
+	# 44 minutes of the uncompleted hour have passed and
+	# in total floor(44 / 15) full quarters have passed
+	# which are 2
+	remaining_quarters=$(($remaining_minutes / $QUARTER_IN_MINUTES))
+
+
+	# for each passed quarter append a color shifted STEP_CHAR.
+	for ((i = 1; i <= $remaining_quarters; i++)); do
+		message+=" \x1B[38;5;${QUARTER_COLORS[$(($i-1))]}m${STEP_CHAR}"
+	done
+
+	# compute the trailing minutes last uncompleted quarter.
+	# values in range [0,14).
+	left_minutes=$(($remaining_minutes % $QUARTER_IN_MINUTES))
+
+	# in order to not show nothing when a new hour started
+	# and a quarter has not passed yet show a dot
+	if [ $remaining_quarters -eq 0 ] && [ $left_minutes -ge 0 ]; then
+		message+=" \x1B[38;5;${QUARTER_COLORS[0]}m${STEP_CHAR}"
+	fi
+
+	echo -e "${message}"
 
 
 else 
